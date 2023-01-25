@@ -1,7 +1,4 @@
-const properties = require('./json/properties.json');
-const users = require('./json/users.json');
 const pg = require('pg');
-const { query } = require('express');
 
 const config = {
   user: 'vagrant',
@@ -15,6 +12,15 @@ const pool = new pg.Pool(config);
 pool.connect(() => {
   console.log('connected to the database');
 });
+
+//function determines if query uses AND or WHERE
+const ANDorWHERE = function(numOfParams) {
+  if (numOfParams > 1) {
+    return 'AND ';
+  } else {
+    return 'WHERE ';
+  }
+};
 
 /// Users
 
@@ -36,7 +42,7 @@ const getUserWithEmail = function(email) {
       console.log(err.message);
       return null;
     });
-}
+};
 exports.getUserWithEmail = getUserWithEmail;
 
 /**
@@ -57,7 +63,7 @@ const getUserWithId = function(id) {
       console.log(err.message);
       return null;
     });
-}
+};
 exports.getUserWithId = getUserWithId;
 
 
@@ -80,7 +86,7 @@ const addUser =  function(user) {
       console.log(err.message);
       return null;
     });
-}
+};
 exports.addUser = addUser;
 
 /// Reservations
@@ -107,7 +113,7 @@ const getAllReservations = function(guest_id, limit = 10) {
       console.log(err.message);
       return null;
     });
-}
+};
 exports.getAllReservations = getAllReservations;
 
 /// Properties
@@ -128,35 +134,30 @@ const getAllProperties = function(options, limit = 10) {
   JOIN property_reviews ON properties.id = property_id
   `;
 
+  //city option
   if (options.city) {
     queryParams.push(`%${options.city}%`);
     queryString += `WHERE city LIKE $${queryParams.length} `;
   }
+
+  //owner_id option
   if (options.owner_id) {
     queryParams.push(`${options.owner_id}`);
-    if (queryParams.length > 1 ) {
-      queryString += 'AND ';
-    } else {
-      queryString += 'WHERE ';
-    }
+    queryString += ANDorWHERE(queryParams.length);
     queryString += `owner_id = $${queryParams.length} `;
   }
+
+  //minimum_price_per_night option
   if (options.minimum_price_per_night) {
     queryParams.push(`${options.minimum_price_per_night * 100}`);
-    if (queryParams.length > 1 ) {
-      queryString += 'AND ';
-    } else {
-      queryString += 'WHERE ';
-    }
+    queryString += ANDorWHERE(queryParams.length);
     queryString += `cost_per_night >= $${queryParams.length} `;
   }
+
+  //maximum_price_per_night option
   if (options.maximum_price_per_night) {
     queryParams.push(`${options.maximum_price_per_night * 100}`);
-    if (queryParams.length > 1 ) {
-      queryString += 'AND ';
-    } else {
-      queryString += 'WHERE ';
-    }
+    queryString += ANDorWHERE(queryParams.length);
     queryString += `cost_per_night <= $${queryParams.length} `;
   }
   
@@ -164,6 +165,7 @@ const getAllProperties = function(options, limit = 10) {
   GROUP BY properties.id
   `;
 
+  //minimum_rating option
   if (options.minimum_rating) {
     queryParams.push(`${options.minimum_rating}`);
     queryString += `HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
@@ -184,8 +186,7 @@ const getAllProperties = function(options, limit = 10) {
     .catch((err) => {
       console.log(err.message);
     });
-
-}
+};
 exports.getAllProperties = getAllProperties;
 
 
@@ -198,7 +199,7 @@ const addProperty = function(property) {
   return pool
     .query(`INSERT INTO properties (owner_id, title, description, thumbnail_photo_url, cover_photo_url, cost_per_night, street, city, province, post_code, country, parking_spaces, number_of_bathrooms, number_of_bedrooms)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
-            RETURNING *;`, 
+            RETURNING *;`,
             [property.owner_id, property.title, property.description, property.thumbnail_photo_url, property.cover_photo_url, property.cost_per_night, property.street, property.city, property.province, property.post_code, property.country, property.parking_spaces, property.number_of_bathrooms, property.number_of_bedrooms])
     .then((result) => {
       console.log(result.rows[0]);
@@ -208,6 +209,5 @@ const addProperty = function(property) {
       console.log(err.message);
       return null;
     });
-
-}
+};
 exports.addProperty = addProperty;
